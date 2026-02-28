@@ -1,5 +1,7 @@
-skyfinder-dir-project/
-│
+**Expected file structure**
+```plaintext
+skyfinder-dir-project/ 
+│ 
 ├─ README.md
 ├─ requirements.txt
 ├─ .gitignore
@@ -123,3 +125,4 @@ skyfinder-dir-project/
    ├─ test_config_loader.py
    ├─ test_feature_builder.py
    └─ test_split_builder.py
+```
