@@ -1,0 +1,2 @@
+feature,n_valid,mean,std,min,p10,p25,median,p75,p90,max,n_unique,top_value_ratio
+VisI,79313,8.09174410248005,4.202749500554696,0.0,4.0,6.2,7.0,10.0,10.0,55.0,58,0.39608891354506826

@@ -1,0 +1,281 @@
+project:
+  name: skyfinder_dir_stage1
+  target: TempM
+  task: cross_camera_long_tailed_temperature_regression
+  primary_goal: >
+    Evaluate whether DIR (LDS/FDS) improves long-tailed temperature regression
+    from structured non-image features under cross-camera generalization.
+
+dataset:
+  cleaned_csv: skyfinder_selected.csv
+  target_column: TempM
+
+  non_input_columns:
+    - Filename
+    - CamId
+    - Date
+    - Timezone
+    - Metar
+    - TempM
+
+  removed_globally:
+    - PrecipM
+    - WgustM
+    - HeatIndexM
+
+  notes:
+    CamId: "Preserved for cross-camera split and per-camera analysis; not used as default input."
+    Date: "Kept for record only; temporal signals are represented by explicit time fields."
+    Timezone: "Kept but not used in stage 1."
+    Metar: "Reserved for future expansion; not used in stage 1."
+    TempM: "Primary prediction target."
+
+feature_groups:
+
+  set_A_time_geo:
+    description: "Temporal and geographic context features."
+    columns:
+      - Year
+      - Latitude
+      - Longitude
+      - Month
+      - Day
+      - Hour
+      - Min
+    preprocessing:
+      cyclical_candidates:
+        - Month
+        - Hour
+      standardize: true
+
+  set_B_core:
+    description: "Core non-image meteorological baseline features."
+    columns:
+      - Hum
+      - WspdM
+      - WDirD
+      - Fog
+      - Rain
+      - Snow
+      - Hail
+      - Thunder
+      - Tornado
+    preprocessing:
+      standardize_numeric: true
+      keep_binary_as_numeric: true
+
+  set_B_aux_weather_desc:
+    description: "High-level summarized weather description features for ablation."
+    columns:
+      - Conds
+      - Icon
+    usage: "ablation_only"
+    preprocessing:
+      categorical_encoding: "label_or_onehot"
+
+  set_B_aux_camera_missing:
+    description: "Meteorological features with camera-level missingness; use only for ablation."
+    columns:
+      - VisM
+      - PressureM
+    usage: "ablation_only"
+    caveat: "These features contain entire-camera missing patterns and may interact with cross-camera split."
+
+  set_B_aux_temp_derived:
+    description: "Temperature-related derived variables; reserved for diagnostic only."
+    columns:
+      - DewPtM
+      - WindChillM
+    usage: "diagnostic_only"
+    caveat: >
+      These variables are strongly temperature-related and may simplify the task;
+      they should not be included in the main stage-1 baseline.
+
+  set_C_image_classic:
+    description: "Classical image/segmentation-derived summary features."
+    columns:
+      - hoiem_MCR
+      - hoiem_Accuracy
+      - svetlana2010_MCR
+      - svetlana2010_Accuracy
+      - tcwc_MCR
+      - tcwc_Accuracy
+    usage: "stage2_only"
+
+  set_C_image_transient:
+    description: "Transient attributes / high-level image semantic attributes."
+    columns:
+      - dirty
+      - daylight
+      - night
+      - sunrisesunset
+      - dawndusk
+      - sunny
+      - clouds
+      - fog
+      - storm
+      - snow
+      - warm
+      - cold
+      - busy
+      - beautiful
+      - flowers
+      - spring
+      - summer
+      - autumn
+      - winter
+      - glowing
+      - colorful
+      - dull
+      - rugged
+      - midday
+      - dark
+      - bright
+      - dry
+      - moist
+      - windy
+      - rain
+      - ice
+      - cluttered
+      - soothing
+      - stressful
+      - exciting
+      - sentimental
+      - mysterious
+      - boring
+      - gloomy
+      - lush
+    usage: "stage2_only"
+
+feature_sets:
+
+  S1_B_core:
+    description: "Primary clean structured baseline."
+    include_groups:
+      - set_B_core
+
+  S2_A_plus_B_core:
+    description: "Primary structured baseline with temporal-spatial context."
+    include_groups:
+      - set_A_time_geo
+      - set_B_core
+
+  S3_B_core_plus_weather_desc:
+    description: "Ablation: add summarized weather descriptors."
+    include_groups:
+      - set_B_core
+      - set_B_aux_weather_desc
+
+  S4_B_core_plus_camera_missing:
+    description: "Ablation: add camera-missing meteorological features."
+    include_groups:
+      - set_B_core
+      - set_B_aux_camera_missing
+
+  S5_A_plus_B_core_plus_weather_desc:
+    description: "Optional richer structured ablation."
+    include_groups:
+      - set_A_time_geo
+      - set_B_core
+      - set_B_aux_weather_desc
+
+  S6_A_plus_B_core_plus_camera_missing:
+    description: "Optional richer structured ablation with camera-missing features."
+    include_groups:
+      - set_A_time_geo
+      - set_B_core
+      - set_B_aux_camera_missing
+
+  S7_B_core_plus_temp_derived:
+    description: "Diagnostic only: add temperature-related derived variables."
+    include_groups:
+      - set_B_core
+      - set_B_aux_temp_derived
+
+  S8_C_image_all:
+    description: "Stage-2 image-derived feature baseline."
+    include_groups:
+      - set_C_image_classic
+      - set_C_image_transient
+
+  S9_A_plus_C_image:
+    description: "Stage-2 temporal-spatial plus image-derived features."
+    include_groups:
+      - set_A_time_geo
+      - set_C_image_classic
+      - set_C_image_transient
+
+  S10_A_plus_B_core_plus_C_image:
+    description: "Stage-2 multimodal structured + image-derived setting."
+    include_groups:
+      - set_A_time_geo
+      - set_B_core
+      - set_C_image_classic
+      - set_C_image_transient
+
+experiment_plan:
+
+  stage1_priority_order:
+    - S1_B_core
+    - S2_A_plus_B_core
+    - S3_B_core_plus_weather_desc
+    - S4_B_core_plus_camera_missing
+    - S7_B_core_plus_temp_derived
+
+  stage2_priority_order:
+    - S8_C_image_all
+    - S9_A_plus_C_image
+    - S10_A_plus_B_core_plus_C_image
+
+  main_split:
+    type: cross_camera
+    group_column: CamId
+    note: "Camera-disjoint train/validation split is the primary setting."
+
+  optional_reference_split:
+    type: random
+    note: "Only as a secondary reference; not for main conclusions."
+
+methods:
+  compare:
+    - Plain
+    - LDS
+    - FDS
+    - LDS_FDS
+
+  recommended_stage1_minimum:
+    - feature_set: S1_B_core
+      method: Plain
+    - feature_set: S1_B_core
+      method: LDS
+    - feature_set: S2_A_plus_B_core
+      method: Plain
+    - feature_set: S2_A_plus_B_core
+      method: LDS
+
+evaluation:
+  primary_metrics:
+    - MAE
+    - RMSE
+
+  stratified_metrics:
+    - many_shot_MAE
+    - medium_shot_MAE
+    - few_shot_MAE
+    - low10_MAE
+    - high10_MAE
+
+  optional_metrics:
+    - camera_wise_MAE_mean
+    - camera_wise_MAE_std
+
+future_extensions:
+  metar:
+    use_in_stage1: false
+    recommended_order:
+      - "Keep as non-input text in stage 1."
+      - "If used later, first parse into structured low-dimensional fields."
+      - "Only then consider text-based encoding as a separate exploratory modality."
+    note: >
+      METAR likely overlaps with existing structured weather observations;
+      it should be treated as a high-information auxiliary modality rather than a baseline feature.

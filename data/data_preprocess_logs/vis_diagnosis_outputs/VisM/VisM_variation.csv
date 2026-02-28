@@ -1,0 +1,2 @@
+feature,n_valid,mean,std,min,p10,p25,median,p75,p90,max,n_unique,top_value_ratio
+VisM,79313,13.03439347900092,6.742739210912334,0.0,6.4,10.0,11.3,16.1,16.1,88.5,94,0.39552154123535865

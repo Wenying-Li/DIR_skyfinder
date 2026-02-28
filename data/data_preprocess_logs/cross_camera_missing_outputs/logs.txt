@@ -1,0 +1,67 @@
+================================================================================
+Cross-Camera Missing Analysis Completed
+================================================================================
+Input CSV: data/skyfinder_cleaned.csv
+Output dir: data/cross_camera_missing_outputs
+--------------------------------------------------------------------------------
+Number of cameras: 53
+Number of rows: 94468
+Number of columns: 87
+--------------------------------------------------------------------------------
+[Top 20] Cameras with highest overall missing rate:
+ CamId  num_samples  num_features  missing_count_total  total_cells  overall_missing_rate
+  3395         1268            86                15238       109048              0.139737
+ 19106          859            86                 8362        73874              0.113193
+ 17218         1805            86                14083       155230              0.090723
+  3837         3197            86                24118       274942              0.087720
+ 10066         1669            86                11744       143534              0.081820
+  5021         1022            86                 7015        87892              0.079814
+  9291         1253            86                 8432       107758              0.078249
+ 10870         1460            86                 9800       125560              0.078050
+ 10917         3565            86                23912       306590              0.077993
+ 11331         1170            86                 7830       100620              0.077818
+  5020         2304            86                15366       198144              0.077550
+ 19388         1789            86                11882       153854              0.077229
+  9730         1805            86                11987       155230              0.077221
+  7211         1511            86                10008       129946              0.077017
+ 22788         1446            86                 9574       124356              0.076989
+  7233         1197            86                 7924       102942              0.076975
+  4584         1805            86                11880       155230              0.076532
+  9112          655            86                 4304        56330              0.076407
+  9483          939            86                 6086        80754              0.075365
+ 11160         1690            86                10672       145340              0.073428
+--------------------------------------------------------------------------------
+[Top 20] Features with largest cross-camera missing-rate variability:
+   feature  mean_missing_rate  std_missing_rate  min_missing_rate  max_missing_rate  range_missing_rate  num_cameras_all_present  num_cameras_all_missing  num_cameras_observed
+      VisI           0.180277          0.247550          0.000000          1.000000            1.000000                       11                        3                    53
+      VisM           0.180277          0.247550          0.000000          1.000000            1.000000                       11                        3                    53
+ PressureI           0.046899          0.192514          0.000000          1.000000            1.000000                       36                        2                    53
+ PressureM           0.046899          0.192514          0.000000          1.000000            1.000000                       36                        2                    53
+     Conds           0.038858          0.144498          0.000000          1.000000            1.000000                       31                        1                    53
+      Icon           0.038858          0.144498          0.000000          1.000000            1.000000                       31                        1                    53
+HeatIndexI           0.935511          0.096931          0.554286          1.000000            0.445714                        0                       11                    53
+HeatIndexM           0.935511          0.096931          0.554286          1.000000            0.445714                        0                       11                    53
+    WgustI           0.942122          0.060520          0.739130          1.000000            0.260870                        0                        1                    53
+    WgustM           0.942122          0.060520          0.739130          1.000000            0.260870                        0                        1                    53
+   PrecipI           0.969152          0.053436          0.775000          1.000000            0.225000                        0                       33                    53
+   PrecipM           0.969152          0.053436          0.775000          1.000000            0.225000                        0                       33                    53
+     WspdI           0.003603          0.017707          0.000000          0.127869            0.127869                       34                        0                    53
+     WspdM           0.003603          0.017707          0.000000          0.127869            0.127869                       34                        0                    53
+     WDirD           0.002211          0.004372          0.000000          0.021310            0.021310                       33                        0                    53
+     WDirE           0.002211          0.004372          0.000000          0.021310            0.021310                       33                        0                    53
+    DewPtI           0.000572          0.001756          0.000000          0.011634            0.011634                       39                        0                    53
+    DewPtM           0.000572          0.001756          0.000000          0.011634            0.011634                       39                        0                    53
+       Hum           0.000572          0.001756          0.000000          0.011634            0.011634                       39                        0                    53
+    autumn           0.000224          0.000936          0.000000          0.004795            0.004795                       49                        0                    53
+--------------------------------------------------------------------------------
+Features with very high cross-camera missing variability (std >= 0.30):
+None
+--------------------------------------------------------------------------------
+Features that are completely missing in at least one camera:
+['VisI', 'VisM', 'PressureI', 'PressureM', 'Conds', 'Icon', 'HeatIndexI', 'HeatIndexM', 'WgustI', 'WgustM', 'PrecipI', 'PrecipM']
+================================================================================
+Saved files:
+1. data/cross_camera_missing_outputs\camera_overall_missing_stats.csv
+2. data/cross_camera_missing_outputs\camera_feature_missing_rates.csv
+3. data/cross_camera_missing_outputs\camera_feature_missing_matrix.csv
+4. data/cross_camera_missing_outputs\feature_missing_variability_across_cameras.csv

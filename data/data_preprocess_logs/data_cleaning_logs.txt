@@ -1,0 +1,34 @@
+============================================================
+Data Cleaning Completed
+============================================================
+Input file:  complete_table_with_mcr.csv
+Output file: skyfinder_cleaned.csv
+Missing stats: skyfinder_cleaned_missing_stats.csv
+Target column: TempM
+------------------------------------------------------------
+Cleaned sample count: 94468
+------------------------------------------------------------
+Top 20 features by missing rate:
+   feature  missing_count  missing_rate   dtype
+   PrecipI          91479      0.968360 float64
+   PrecipM          91479      0.968360 float64
+    WgustI          88618      0.938074 float64
+    WgustM          88618      0.938074 float64
+HeatIndexI          88037      0.931924 float64
+HeatIndexM          88037      0.931924 float64
+      VisI          15155      0.160425 float64
+      VisM          15155      0.160425 float64
+     Conds           3421      0.036213  object
+      Icon           3421      0.036213  object
+ PressureI           2865      0.030328 float64
+ PressureM           2865      0.030328 float64
+     WDirD            185      0.001958 float64
+     WDirE            185      0.001958  object
+     WspdI            143      0.001514 float64
+     WspdM            143      0.001514 float64
+    DewPtI             57      0.000603 float64
+    DewPtM             57      0.000603 float64
+       Hum             57      0.000603 float64
+    autumn             16      0.000169 float64
+============================================================
+Note: 'CamId' is preserved in the cleaned CSV for split/analysis.
