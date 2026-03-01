@@ -31,8 +31,6 @@ from src.data.preprocess import (
     build_feature_transformer,
     load_dataframe,
     resolve_feature_columns,
-    split_indices,              # legacy, not used in main flow but kept for reference
-    split_indices_three_way,    # new function for 3-way splits with different strategies
     transform_features,
 )
 from src.data.shot_taxonomy import (  # noqa: E402
@@ -329,7 +327,8 @@ def _cross_camera_3way_indices(
     groups = df[group_col].values
 
     if test_ratio <= 0:
-        tr, va = base_split_indices(df, "cross_camera", val_ratio, seed, group_col=group_col)
+        gss = GroupShuffleSplit(n_splits=1, test_size=val_ratio, random_state=seed)
+        tr, va = next(gss.split(idx, groups=groups))
         return np.asarray(tr), np.asarray(va), None
 
     gss_outer = GroupShuffleSplit(n_splits=1, test_size=test_ratio, random_state=seed)
@@ -344,6 +343,54 @@ def _cross_camera_3way_indices(
     tr = trainval_idx[tr_rel]
     va = trainval_idx[va_rel]
     return np.asarray(tr), np.asarray(va), np.asarray(test_idx)
+
+
+def _random_trainval_cross_camera_test_indices(
+    df: pd.DataFrame,
+    group_col: str,
+    val_ratio: float,
+    seed: int,
+    camera_split_manifest: str,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, object]]:
+    if group_col not in df.columns:
+        raise ValueError(f"group_col '{group_col}' not found for random_trainval_cross_camera_test split")
+
+    _train_cams, _val_cams, test_cams = _load_camera_manifest(camera_split_manifest)
+    if not test_cams:
+        raise ValueError(
+            "random_trainval_cross_camera_test requires 'test_cameras' in --camera_split_manifest."
+        )
+
+    cam_series = df[group_col].astype(str)
+    test_mask = cam_series.isin(set(test_cams)).values
+    test_idx = np.where(test_mask)[0]
+    remaining_idx = np.where(~test_mask)[0]
+
+    if len(test_idx) == 0:
+        raise ValueError("Manifest test_cameras produced an empty test set after target filtering.")
+    if len(remaining_idx) == 0:
+        raise ValueError("No samples remain for train/val after excluding manifest test_cameras.")
+
+    tr_rel, va_rel = train_test_split(
+        np.arange(len(remaining_idx)),
+        test_size=val_ratio,
+        random_state=seed,
+        shuffle=True,
+    )
+    tr = remaining_idx[tr_rel]
+    va = remaining_idx[va_rel]
+
+    if len(tr) == 0 or len(va) == 0:
+        raise ValueError("random_trainval_cross_camera_test produced empty train or validation set.")
+
+    split_meta = {
+        "group_col": group_col,
+        "val_ratio": val_ratio,
+        "camera_split_manifest": camera_split_manifest,
+        "test_cameras": list(test_cams),
+    }
+    return np.asarray(tr), np.asarray(va), np.asarray(test_idx), split_meta
+
 
 
 
@@ -376,12 +423,34 @@ def resolve_split_indices(df: pd.DataFrame, args: argparse.Namespace) -> Tuple[n
         split_meta.update({"val_ratio": args.val_ratio, "test_ratio": args.test_ratio})
         return tr, va, te, split_meta
 
+    if args.split_mode == "full_random":
+        tr, va, te = _random_3way_indices(len(df), args.val_ratio, args.test_ratio, args.seed)
+        split_meta.update({"val_ratio": args.val_ratio, "test_ratio": args.test_ratio})
+        return tr, va, te, split_meta
+
     if args.split_mode == "cross_camera":
         tr, va, te = _cross_camera_3way_indices(df, args.group_col, args.val_ratio, args.test_ratio, args.seed)
         split_meta.update({"group_col": args.group_col, "val_ratio": args.val_ratio, "test_ratio": args.test_ratio})
         return tr, va, te, split_meta
 
+    if args.split_mode == "random_trainval_cross_camera_test":
+        if not args.camera_split_manifest:
+            raise ValueError(
+                "split_mode=random_trainval_cross_camera_test requires --camera_split_manifest "
+                "with a non-empty 'test_cameras' field."
+            )
+        tr, va, te, extra_meta = _random_trainval_cross_camera_test_indices(
+            df=df,
+            group_col=args.group_col,
+            val_ratio=args.val_ratio,
+            seed=args.seed,
+            camera_split_manifest=args.camera_split_manifest,
+        )
+        split_meta.update(extra_meta)
+        return tr, va, te, split_meta
+
     raise ValueError(f"Unsupported split_mode: {args.split_mode}")
+
 
 
 
@@ -398,18 +467,10 @@ def train(args: argparse.Namespace) -> RunArtifacts:
     df = df[df[target_col].notna()].copy().reset_index(drop=True)
     feature_df, _, _ = resolve_feature_columns(config, args.feature_set, df, args.cyclical_time)
 
-    train_idx, val_idx, test_idx, split_meta = split_indices_three_way(
-        df=df,
-        split_mode=args.split_mode,
-        val_ratio=args.val_ratio,
-        test_ratio=args.test_ratio,
-        seed=args.seed,
-        group_col=args.group_col,
-        camera_split_manifest=args.camera_split_manifest,
-        train_cameras_json=args.train_cameras_json,
-        val_cameras_json=args.val_cameras_json,
-        test_cameras_json=args.test_cameras_json,
-    )
+    train_idx, val_idx, test_idx, split_meta = resolve_split_indices(df, args)
+    if test_idx is not None and len(test_idx) == 0:
+        test_idx = None
+
     train_feat = feature_df.iloc[train_idx].copy()
     val_feat = feature_df.iloc[val_idx].copy()
     test_feat = feature_df.iloc[test_idx].copy() if test_idx is not None else None
@@ -458,12 +519,11 @@ def train(args: argparse.Namespace) -> RunArtifacts:
 
     # 3) Feature transform (supports numeric + categorical)
     feat_art = build_feature_transformer(train_feat)
-    if len(test_idx) > 0:
+    if test_feat is not None and len(test_feat) > 0:
         X_train, X_val, X_test = transform_features(train_feat, val_feat, feat_art, test_feat=test_feat)
     else:
         X_train, X_val = transform_features(train_feat, val_feat, feat_art)
         X_test = None
-    X_test = feat_art.transformer.transform(test_feat).astype(np.float32) if test_feat is not None else None
 
     reweight, use_lds, use_fds = parse_method(args.method)
     sample_weights, effective_counts = prepare_sample_weights(
@@ -666,7 +726,7 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--target_col", type=str, default=None)
 
     p.add_argument("--run_dir", type=str, default="runs/stage1")
-    p.add_argument("--split_mode", type=str, default="cross_camera", choices=["cross_camera", "random", "fixed_camera_json"])
+    p.add_argument("--split_mode", type=str, default="cross_camera", choices=["cross_camera", "random", "full_random", "random_trainval_cross_camera_test", "fixed_camera_json"])
     p.add_argument("--group_col", type=str, default="CamId")
     p.add_argument("--val_ratio", type=float, default=0.2)
     p.add_argument("--test_ratio", type=float, default=0.0)
